@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Homework Panic Helper — GOD MODE</title>
+<style>
+:root {
+  --bg: #f4f6fb;
+  --card: #ffffff;
+  --text: #111;
+  --accent: #4f6df5;
+  --done: #7ed957;
+}
+
+.dark {
+  --bg: #121212;
+  --card: #1e1e1e;
+  --text: #f0f0f0;
+  --accent: #7289da;
+}
+
+body {
+  background: var(--bg);
+  font-family: Arial, sans-serif;
+  color: var(--text);
+  padding: 30px;
+  transition: 0.3s;
+}
+
+.container {
+  max-width: 800px;
+  margin: auto;
+  background: var(--card);
+  padding: 25px;
+  border-radius: 14px;
+}
+
+h2 { margin-top: 0; }
+
+input, select, button {
+  width: 100%;
+  padding: 10px;
+  margin-top: 8px;
+}
+
+button {
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.controls { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+.small-btn { flex: 1; }
+
+.task {
+  border: 1px solid #ccc;
+  padding: 12px;
+  border-radius: 10px;
+  margin-top: 10px;
+  background: var(--card);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: grab;
+}
+
+.task.dragging { opacity: 0.5; }
+
+.task-info { flex: 1; }
+
+.progress-bar {
+  height: 10px;
+  border-radius: 5px;
+  background: #ddd;
+  margin-top: 5px;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 5px;
+  background: var(--accent);
+  width: 0%;
+  transition: width 0.3s;
+}
+
+.recommend {
+  background: #e8ecff;
+  padding: 12px;
+  border-radius: 10px;
+  margin-top: 15px;
+  animation: fadein 0.5s;
+}
+
+@keyframes celebrate {
+  0% {transform: scale(1);}
+  50% {transform: scale(1.3);}
+  100% {transform: scale(1);}
+}
+
+@keyframes fadein { from {opacity:0;} to {opacity:1;} }
+
+.timer { font-size: 20px; text-align: center; margin-top: 10px; }
+
+.category {
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-size: 12px;
+  color: white;
+  margin-left: 5px;
+}
+
+.blue { background: #4f6df5; }
+.yellow { background: #f5d44f; }
+.green { background: #7ed957; }
+.red { background: #f54f4f; }
+
+.motivational {
+  margin-top: 10px;
+  font-style: italic;
+  color: #555;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h2>Homework Panic Helper — GOD MODE</h2>
+  <p>You’re not lazy. You’re overwhelmed. Let’s crush this calmly.</p>
+
+  <input id="name" placeholder="Task name">
+  <select id="category">
+    <option value="blue">Math</option>
+    <option value="yellow">English</option>
+    <option value="green">Science</option>
+    <option value="red">Other</option>
+  </select>
+  <select id="due">
+    <option value="1">Due Today</option>
+    <option value="2">Due Tomorrow</option>
+    <option value="3">Due Later</option>
+  </select>
+  <select id="difficulty">
+    <option value="1">Easy</option>
+    <option value="2">Medium</option>
+    <option value="3">Hard</option>
+  </select>
+
+  <button onclick="addTask()">Add Task</button>
+
+  <div class="controls">
+    <button class="small-btn" onclick="setEnergy('normal')">⚡ Normal</button>
+    <button class="small-btn" onclick="setEnergy('tired')">😴 Exhausted</button>
+    <button class="small-btn" onclick="toggleDark()">🌙 Dark Mode</button>
+    <button class="small-btn" onclick="focusMode()">🎯 Focus Mode</button>
+  </div>
+
+  <div id="recommend"></div>
+  <div id="tasks"></div>
+
+  <div class="timer">
+    <p id="time">No timer running</p>
+    <div class="controls">
+      <button onclick="startTimer(5)">5 min</button>
+      <button onclick="startTimer(25)">25 min</button>
+    </div>
+  </div>
+
+  <div class="motivational" id="motivation"></div>
+</div>
+
+<script>
+let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+let energy = "normal";
+let dragIndex = null;
+let timerInterval;
+const motivationalMessages = [
+  "You’ve got this 💪",
+  "Even small steps count",
+  "One thing at a time",
+  "Starting is already a win",
+  "Focus, not perfection"
+];
+
+function save() { localStorage.setItem("tasks", JSON.stringify(tasks)); }
+
+function addTask() {
+  const name = document.getElementById("name").value;
+  if (!name.trim()) return;
+  tasks.push({
+    name,
+    category: document.getElementById("category").value,
+    due: +document.getElementById("due").value,
+    difficulty: +document.getElementById("difficulty").value,
+    progress: 0
+  });
+  document.getElementById("name").value = "";
+  save();
+  render();
+}
+
+function render() {
+  const tDiv = document.getElementById("tasks");
+  tDiv.innerHTML = "";
+  tasks.forEach((t,i)=>{
+    const task = document.createElement("div");
+    task.className="task";
+    task.draggable=true;
+    task.ondragstart = ()=>dragIndex=i;
+    task.ondragover = e=>e.preventDefault();
+    task.ondrop = ()=>{
+      const tmp = tasks[i];
+      tasks[i]=tasks[dragIndex];
+      tasks[dragIndex]=tmp;
+      save(); render();
+    };
+    task.innerHTML=`
+      <div class="task-info">
+        <strong>${t.name}</strong>
+        <span class="category ${t.category}"></span><br>
+        Due: ${dueText(t.due)} | Difficulty: ${diffText(t.difficulty)}
+        <div class="progress-bar">
+          <div class="progress-fill" style="width:${t.progress}%"></div>
+        </div>
+      </div>
+      <div style="text-align:right;">
+        <button onclick="updateProgress(${i})">➕ Progress</button><br>
+        <button onclick="removeTask(${i})">❌ Delete</button>
+      </div>
+    `;
+    tDiv.appendChild(task);
+  });
+  recommendTask();
+  showMotivation();
+}
+
+function updateProgress(i) {
+  tasks[i].progress += 25;
+  if (tasks[i].progress>100) tasks[i].progress=100;
+  if(tasks[i].progress===100) celebrate();
+  save(); render();
+}
+
+function celebrate() {
+  alert("🎉 Task complete! Great job!");
+}
+
+function removeTask(i){tasks.splice(i,1); save(); render();}
+
+function setEnergy(mode){energy=mode; render();}
+
+function toggleDark(){document.body.classList.toggle("dark");}
+
+function focusMode(){
+  if(tasks.length===0){alert("No tasks!"); return;}
+  const best=tasks.reduce((b,t)=> (t.due<b.due||(t.due===b.due&&t.difficulty<b.difficulty)?t:b));
+  alert(`Focus on: ${best.name}\nDo small steps. You’ve got this.`);
+}
+
+function recommendTask(){
+  if(tasks.length===0) return;
+  let best = tasks.reduce((b,t)=> (t.due<b.due||(t.due===b.due&&t.difficulty<b.difficulty)?t:b));
+  document.getElementById("recommend").innerHTML=`
+    <div class="recommend">
+      <strong>Start here:</strong> ${best.name}<br>
+      ${energy==="tired"?"Just open it. That’s enough":"Do 5 minutes to start"}
+    </div>`;
+}
+
+function startTimer(mins){
+  clearInterval(timerInterval);
+  let time=mins*60;
+  timerInterval=setInterval(()=>{
+    let m=Math.floor(time/60),s=time%60;
+    document.getElementById("time").textContent=`${m}:${s.toString().padStart(2,"0")}`;
+    if(--time<0){clearInterval(timerInterval);document.getElementById("time").textContent="Time’s up. You did enough.";}
+  },1000);
+}
+
+function dueText(n){return n===1?"Today":n===2?"Tomorrow":"Later";}
+function diffText(n){return n===1?"Easy":n===2?"Medium":"Hard";}
+
+function showMotivation(){
+  const msg = motivationalMessages[Math.floor(Math.random()*motivationalMessages.length)];
+  document.getElementById("motivation").textContent = msg;
+}
+
+render();
+</script>
+
+</body>
+</html>
